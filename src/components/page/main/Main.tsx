@@ -118,6 +118,13 @@ const Main: React.FC = () => {
     }
   }, [currentStep, tissueData]);
 
+  // 바늘 삽입 애니메이션을 currentStep이 3이 되는 순간 자동 실행
+  useEffect(() => {
+    if (currentStep === 3) {
+      simulateNeedleInsertion();
+    }
+  }, [currentStep]);
+
   const steps = [
     { id: 1, title: "Patient Setup", icon: <Target className="w-5 h-5" /> },
     { id: 2, title: "Tissue Analysis", icon: <Eye className="w-5 h-5" /> },
@@ -145,23 +152,44 @@ const Main: React.FC = () => {
     setIsScanning(false);
   };
 
+  // 해부학적 구조의 위치/크기 % 단위로 통일
+  // 바늘 경로도 구조 경계에 맞게 조정
+  const skinTop = 0, skinHeight = 8;
+  const fatTop = skinTop + skinHeight, fatHeight = 12;
+  const muscleTop = fatTop + fatHeight, muscleHeight = 20;
+  const nerveTop = muscleTop + muscleHeight, nerveHeight = 8;
+  const nerveLeft = 20, nerveWidth = 8;
+  const nerveCenter = { x: nerveLeft + nerveWidth / 2, y: nerveTop + nerveHeight / 2 };
+  const needleBase = { x: 15, y: 5 };
+
+  // 바늘이 해부학적 구조를 순서대로 관통하도록
+  const insertionSteps = [
+    needleBase, // 피부 진입
+    { x: 16, y: fatTop + 4 }, // 피하지방 통과
+    { x: 18, y: muscleTop + 8 }, // 사각근 통과
+    { x: nerveCenter.x - 2, y: nerveCenter.y - 2 }, // 신경총 접근
+    nerveCenter // 신경총 중심
+  ];
+
+  // 쇄골하동맥/정맥 도형 위치 변수 추가
+  const arteryTop = 28, arteryRight = 16, arteryWidth = 4, arteryHeight = 20;
+  const arteryLeft = 100 - arteryRight - arteryWidth;
+  const arteryLabelTop = arteryTop + arteryHeight / 2 - 1;
+  const arteryLabelLeft = arteryLeft + arteryWidth / 2;
+  const veinTop = 32, veinRight = 28, veinWidth = 6, veinHeight = 16;
+  const veinLeft = 100 - veinRight - veinWidth;
+  const veinLabelTop = veinTop + veinHeight / 2 - 1;
+  const veinLabelLeft = veinLeft + veinWidth / 2;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            AnesthAI Pro
+            NeuroSight
           </h1>
-          <p className="text-xl text-gray-600">
-            정량적 초음파 기반 국소마취 AI 보조 시스템
-          </p>
-          <div className="mt-4 inline-flex items-center space-x-2 bg-green-100 text-green-800 px-4 py-2 rounded-full">
-            <CheckCircle className="w-4 h-4" />
-            <span className="text-sm font-medium">
-              MVP v1.0 - 핵심 기능 시연
-            </span>
-          </div>
+        
         </div>
 
         {/* Progress Steps */}
@@ -199,162 +227,71 @@ const Main: React.FC = () => {
           </div>
         </div>
 
-        {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Panel - Patient Info & Controls */}
+        {/* Main Content - 좌측(고정폭) + 중앙(초음파) + 하단(분석) */}
+        <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-8 items-start">
+          {/* 좌측: 환자 정보/제어/조직 분석 */}
           <div className="space-y-6">
             {/* Patient Information */}
             <div className="bg-white rounded-xl shadow-lg p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                환자 정보
-              </h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">환자 정보</h3>
               <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">연령:</span>
-                  <span className="font-medium">{patientData.age}세</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">체중:</span>
-                  <span className="font-medium">{patientData.weight}kg</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">BMI:</span>
-                  <span className="font-medium">{patientData.bmi}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">수술:</span>
-                  <span className="font-medium">{patientData.procedure}</span>
-                </div>
+                <div className="flex justify-between"><span className="text-gray-600">연령:</span><span className="font-medium">{patientData.age}세</span></div>
+                <div className="flex justify-between"><span className="text-gray-600">체중:</span><span className="font-medium">{patientData.weight}kg</span></div>
+                <div className="flex justify-between"><span className="text-gray-600">BMI:</span><span className="font-medium">{patientData.bmi}</span></div>
+                <div className="flex justify-between"><span className="text-gray-600">수술:</span><span className="font-medium">{patientData.procedure}</span></div>
               </div>
             </div>
-
             {/* Control Panel */}
             <div className="bg-white rounded-xl shadow-lg p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                시스템 제어
-              </h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">시스템 제어</h3>
               <div className="space-y-4">
                 {currentStep === 1 && (
-                  <button
-                    onClick={() => {
-                      simulateUltrasoundScan();
-                      nextStep();
-                    }}
-                    className="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"
-                  >
+                  <button onClick={() => { simulateUltrasoundScan(); nextStep(); }} className="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2">
                     <Play className="w-4 h-4" />
                     <span>상완신경총 스캔 시작</span>
                   </button>
                 )}
-
                 {currentStep === 2 && tissueData && (
-                  <button
-                    onClick={() => {
-                      nextStep();
-                      simulateAIAnalysis();
-                    }}
-                    className="w-full bg-green-500 hover:bg-green-600 text-white px-4 py-3 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"
-                  >
+                  <button onClick={() => { nextStep(); simulateAIAnalysis(); }} className="w-full bg-green-500 hover:bg-green-600 text-white px-4 py-3 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2">
                     <Target className="w-4 h-4" />
                     <span>바늘 삽입 시작</span>
                   </button>
                 )}
-
                 {currentStep > 2 && currentStep < 5 && (
-                  <button
-                    onClick={nextStep}
-                    className="w-full bg-purple-500 hover:bg-purple-600 text-white px-4 py-3 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"
-                  >
+                  <button onClick={nextStep} className="w-full bg-purple-500 hover:bg-purple-600 text-white px-4 py-3 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2">
                     <span>다음 단계</span>
                   </button>
                 )}
-
                 {currentStep >= 5 && (
                   <div className="w-full bg-green-100 text-green-800 px-4 py-3 rounded-lg font-medium text-center">
                     <CheckCircle className="w-5 h-5 inline mr-2" />
                     시술 완료
                   </div>
                 )}
-
-                <button
-                  onClick={resetDemo}
-                  className="w-full bg-gray-500 hover:bg-gray-600 text-white px-4 py-3 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"
-                >
+                <button onClick={resetDemo} className="w-full bg-gray-500 hover:bg-gray-600 text-white px-4 py-3 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2">
                   <RotateCcw className="w-4 h-4" />
                   <span>초기화</span>
                 </button>
               </div>
             </div>
-
             {/* Tissue Analysis Results */}
             {tissueData && (
               <div className="bg-white rounded-xl shadow-lg p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  조직 분석 결과
-                </h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">조직 분석 결과</h3>
                 <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">조직 밀도:</span>
-                    <div className="flex items-center space-x-2">
-                      <div className="w-20 bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-blue-500 h-2 rounded-full transition-all duration-1000"
-                          style={{ width: `${tissueData.density}%` }}
-                        />
-                      </div>
-                      <span className="text-sm font-medium">
-                        {tissueData.density.toFixed(1)}%
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">저항도:</span>
-                    <div className="flex items-center space-x-2">
-                      <div className="w-20 bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-green-500 h-2 rounded-full transition-all duration-1000"
-                          style={{ width: `${tissueData.resistance}%` }}
-                        />
-                      </div>
-                      <span className="text-sm font-medium">
-                        {tissueData.resistance.toFixed(1)}%
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">탄성계수:</span>
-                    <div className="flex items-center space-x-2">
-                      <div className="w-20 bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-purple-500 h-2 rounded-full transition-all duration-1000"
-                          style={{ width: `${tissueData.elasticity}%` }}
-                        />
-                      </div>
-                      <span className="text-sm font-medium">
-                        {tissueData.elasticity.toFixed(1)}%
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">신경 깊이:</span>
-                    <span className="font-medium">
-                      {tissueData.nerveDepth.toFixed(1)}mm
-                    </span>
-                  </div>
+                  <div className="flex justify-between items-center"><span className="text-gray-600">조직 밀도:</span><div className="flex items-center space-x-2"><div className="w-20 bg-gray-200 rounded-full h-2"><div className="bg-blue-500 h-2 rounded-full transition-all duration-1000" style={{ width: `${tissueData.density}%` }} /></div><span className="text-sm font-medium">{tissueData.density.toFixed(1)}%</span></div></div>
+                  <div className="flex justify-between items-center"><span className="text-gray-600">저항도:</span><div className="flex items-center space-x-2"><div className="w-20 bg-gray-200 rounded-full h-2"><div className="bg-green-500 h-2 rounded-full transition-all duration-1000" style={{ width: `${tissueData.resistance}%` }} /></div><span className="text-sm font-medium">{tissueData.resistance.toFixed(1)}%</span></div></div>
+                  <div className="flex justify-between items-center"><span className="text-gray-600">탄성계수:</span><div className="flex items-center space-x-2"><div className="w-20 bg-gray-200 rounded-full h-2"><div className="bg-purple-500 h-2 rounded-full transition-all duration-1000" style={{ width: `${tissueData.elasticity}%` }} /></div><span className="text-sm font-medium">{tissueData.elasticity.toFixed(1)}%</span></div></div>
+                  <div className="flex justify-between"><span className="text-gray-600">신경 깊이:</span><span className="font-medium">{tissueData.nerveDepth.toFixed(1)}mm</span></div>
                 </div>
               </div>
             )}
           </div>
-
-          {/* Center Panel - Ultrasound Visualization */}
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              실시간 초음파 영상 (상완신경총 차단)
-            </h3>
-            <div
-              className="relative bg-black rounded-lg overflow-hidden"
-              style={{ aspectRatio: "4/3" }}
-            >
+          {/* 중앙: 초음파 영상 (가장 크게) */}
+          <div className="flex flex-col items-center w-full">
+            <div className="bg-white rounded-xl shadow-lg w-full max-w-5xl mx-auto p-2">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">실시간 초음파 영상 (상완신경총 차단)</h3>
+              <div className="relative bg-black rounded-lg overflow-hidden mx-auto" style={{ aspectRatio: '4/3', width: '100%', minHeight: '480px', maxHeight: '70vh' }}>
               {/* Ultrasound Background with realistic noise */}
               <div className="absolute inset-0 bg-gradient-to-b from-gray-800 to-black">
                 {/* Ultrasound noise pattern */}
@@ -392,30 +329,13 @@ const Main: React.FC = () => {
                 {tissueData && (
                   <>
                     {/* Skin layer */}
-                    <div className="absolute top-0 left-0 right-0 h-6 bg-gradient-to-b from-gray-500 to-gray-600 opacity-80">
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gray-400 to-transparent opacity-30" />
-                    </div>
-
+                      <div className="absolute left-0 right-0" style={{ top: `${skinTop}%`, height: `${skinHeight}%`, background: 'linear-gradient(to bottom, #6b7280, #4b5563)', opacity: 0.8 }} />
                     {/* Subcutaneous fat */}
-                    <div className="absolute top-6 left-0 right-0 h-10 bg-gradient-to-b from-yellow-600 to-yellow-700 opacity-60">
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-yellow-500 to-transparent opacity-40" />
-                    </div>
-
+                      <div className="absolute left-0 right-0" style={{ top: `${fatTop}%`, height: `${fatHeight}%`, background: 'linear-gradient(to bottom, #fbbf24, #f59e42)', opacity: 0.6 }} />
                     {/* Muscle layer (Scalene muscles) */}
-                    <div className="absolute top-16 left-0 right-0 h-20 bg-gradient-to-b from-red-900 to-red-800 opacity-70">
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-red-700 to-transparent opacity-30" />
-                      {/* Muscle fiber pattern */}
-                      {[...Array(8)].map((_, i) => (
-                        <div
-                          key={i}
-                          className="absolute w-full h-0.5 bg-red-600 opacity-40"
-                          style={{ top: `${i * 12.5}%` }}
-                        />
-                      ))}
-                    </div>
-
+                      <div className="absolute left-0 right-0" style={{ top: `${muscleTop}%`, height: `${muscleHeight}%`, background: 'linear-gradient(to bottom, #7f1d1d, #b91c1c)', opacity: 0.7 }} />
                     {/* Brachial Plexus Nerves */}
-                    <div className="absolute top-20 left-20 w-24 h-8 bg-yellow-400 opacity-90 rounded-lg">
+                      <div className="absolute" style={{ top: `${nerveTop}%`, left: `${nerveLeft}%`, width: `${nerveWidth}%`, height: `${nerveHeight}%`, backgroundColor: '#facc15', opacity: 0.9, borderRadius: '0.75rem' }}>
                       <div className="absolute inset-1 bg-yellow-300 rounded-lg opacity-60" />
                       <div className="absolute top-1 left-1 right-1 h-1 bg-yellow-200 rounded-full" />
                       <div className="absolute bottom-1 left-1 right-1 h-1 bg-yellow-200 rounded-full" />
@@ -453,31 +373,67 @@ const Main: React.FC = () => {
                 )}
 
                 {/* Needle insertion animation */}
-                {currentStep >= 3 && (
-                  <>
-                    {/* Needle shaft */}
-                    <div
-                      className="absolute bg-gradient-to-r from-gray-300 to-white opacity-95 transition-all duration-1000 rounded-full"
-                      style={{
-                        left: `${needlePosition.x - 1}%`,
-                        top: `${Math.max(0, needlePosition.y - 25)}%`,
-                        width: "3px",
-                        height: `${Math.min(50, needlePosition.y + 25)}%`,
-                        transform: "rotate(20deg)",
-                        transformOrigin: "top center",
-                      }}
-                    />
-
-                    {/* Needle tip with enhanced visibility */}
-                    <div
-                      className="absolute w-2 h-2 bg-white opacity-100 transition-all duration-1000"
-                      style={{
-                        left: `${needlePosition.x}%`,
-                        top: `${needlePosition.y}%`,
-                        clipPath: "polygon(50% 100%, 0% 0%, 100% 0%)",
-                        filter: "drop-shadow(0 0 2px rgba(255,255,255,0.8))",
-                      }}
-                    />
+                  {typeof currentStep === 'number' && currentStep >= 2 && (
+                    <>
+                      {/* Needle shaft (SVG) */}
+                      <div className="absolute inset-0 pointer-events-none">
+                        <svg width="100%" height="100%" style={{ position: "absolute", left: 0, top: 0 }}>
+                          <defs>
+                            <linearGradient id="needleGradient" x1="0" y1="0" x2="100%" y2="0">
+                              <stop offset="0%" stopColor="#d1d5db" />
+                              <stop offset="100%" stopColor="#fff" />
+                            </linearGradient>
+                            <filter id="needleShadow" x="-10%" y="-10%" width="120%" height="120%">
+                              <feDropShadow dx="0" dy="1" stdDeviation="1" flood-color="#888" flood-opacity="0.3" />
+                            </filter>
+                          </defs>
+                          {/* Shaft */}
+                          <line
+                            x1={`${needleBase.x}%`}
+                            y1={`${needleBase.y}%`}
+                            x2={`${needlePosition.x}%`}
+                            y2={`${needlePosition.y}%`}
+                            stroke="url(#needleGradient)"
+                            strokeWidth="3"
+                            strokeLinecap="round"
+                            filter="url(#needleShadow)"
+                          />
+                          {/* Arrow tip (삼각형) */}
+                          {(() => {
+                            // shaft 방향 벡터
+                            const x1 = 15, y1 = 10, x2 = needlePosition.x, y2 = needlePosition.y;
+                            const dx = x2 - x1;
+                            const dy = y2 - y1;
+                            const len = Math.sqrt(dx*dx + dy*dy);
+                            // 단위벡터
+                            const ux = dx / len;
+                            const uy = dy / len;
+                            // 삼각형 tip 좌표 계산 (끝점 기준)
+                            const size = 2; // tip 크기(%)
+                            // shaft 끝점
+                            const tipX = x2;
+                            const tipY = y2;
+                            // 좌우로 벌어진 점
+                            const leftX = tipX - uy * size * 0.7 - ux * size * 0.7;
+                            const leftY = tipY + ux * size * 0.7 - uy * size * 0.7;
+                            const rightX = tipX + uy * size * 0.7 - ux * size * 0.7;
+                            const rightY = tipY - ux * size * 0.7 - uy * size * 0.7;
+                            return (
+                              <polygon
+                                points={`
+                                  ${tipX}%,${tipY}%
+                                  ${leftX}%,${leftY}%
+                                  ${rightX}%,${rightY}%
+                                `}
+                                fill="#fff"
+                                stroke="#888"
+                                strokeWidth="0.2"
+                                filter="url(#needleShadow)"
+                              />
+                            );
+                          })()}
+                        </svg>
+                      </div>
 
                     {/* Needle contact point indicator */}
                     {currentStep >= 4 && (
@@ -492,35 +448,109 @@ const Main: React.FC = () => {
                   </>
                 )}
 
-                {/* Anesthetic spread visualization */}
+                  {/* 진짜 마취제 퍼짐: 중앙 drop + 좌우로 천천히 10초 확산 */}
                 {predictedSpread && currentStep >= 4 && (
-                  <>
-                    {/* Primary spread around nerve */}
-                    <div
-                      className="absolute bg-blue-400 opacity-40 rounded-full animate-pulse transition-all duration-2000"
-                      style={{
-                        left: "18%",
-                        top: "18%",
-                        width: "28%",
-                        height: "12%",
-                        filter: "blur(2px)",
-                      }}
-                    />
-
-                    {/* Secondary spread */}
-                    <div
-                      className="absolute bg-cyan-300 opacity-30 rounded-full animate-pulse transition-all duration-3000"
-                      style={{
-                        left: "15%",
-                        top: "15%",
-                        width: "35%",
-                        height: "18%",
-                        filter: "blur(3px)",
-                        animationDelay: "0.5s",
-                      }}
-                    />
+  <div className="pointer-events-none absolute inset-0 z-40">
+    <svg width="100%" height="100%" style={{ position: "absolute", left: 0, top: 0 }}>
+      <defs>
+        <radialGradient id="primarySpread" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#2563eb" stopOpacity="1" />
+          <stop offset="100%" stopColor="#38bdf8" stopOpacity="1" />
+        </radialGradient>
+        <radialGradient id="secondarySpread" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#a21caf" stopOpacity="1" />
+          <stop offset="100%" stopColor="#06b6d4" stopOpacity="1" />
+        </radialGradient>
+      </defs>
+      {(() => {
+        // 1차, 2차 용량(ml) 직접 지정
+        const v1 = 8;
+        const v2 = 15;
+        // 시각적 계수(조정 가능)
+        const kx = 1.5, ky = 0.7;
+        // 사각근 중앙 y좌표, 최대 반지름 제한
+        const muscleCenterY = muscleTop + muscleHeight / 2;
+        const margin = 2;
+        const muscleMaxRy = muscleHeight / 2 - margin;
+        const muscleMaxRx = 30;
+        // ellipse 크기
+        const r1x = Math.min(v1 * kx, muscleMaxRx);
+        const r1y = Math.min(v1 * ky, muscleMaxRy);
+        const r2x = Math.min(v2 * kx, muscleMaxRx);
+        const r2y = Math.min(v2 * ky, muscleMaxRy);
+        return <>
+          <ellipse
+            cx={`${needlePosition.x}%`}
+            cy={`${muscleCenterY}%`}
+            rx={`${r1x}%`}
+            ry={`${r1y}%`}
+            fill="url(#primarySpread)"
+            opacity="0.6"
+          >
+            <animate attributeName="rx" from="3%" to={`${r1x}%`} dur="1.2s" fill="freeze" />
+            <animate attributeName="ry" from="1.5%" to={`${r1y}%`} dur="1.2s" fill="freeze" />
+          </ellipse>
+          <ellipse
+            cx={`${needlePosition.x}%`}
+            cy={`${muscleCenterY}%`}
+            rx={`${r2x}%`}
+            ry={`${r2y}%`}
+            fill="url(#secondarySpread)"
+            opacity="0.35"
+          >
+            <animate attributeName="rx" from={`${r1x}%`} to={`${r2x}%`} dur="1.8s" begin="1.2s" fill="freeze" />
+            <animate attributeName="ry" from={`${r1y}%`} to={`${r2y}%`} dur="1.8s" begin="1.2s" fill="freeze" />
+          </ellipse>
+          {/* 1차 범위 끝 라벨 */}
+          <foreignObject
+            x={`${needlePosition.x + r1x - 2}%`}
+            y={`${muscleCenterY - r1y / 2}%`}
+            width="48"
+            height="32"
+            style={{ overflow: 'visible' }}
+          >
+            <div
+              className="text-white text-base font-bold px-2 py-1 rounded-full shadow-lg"
+              style={{
+                background: 'linear-gradient(90deg,#2563eb,#38bdf8)',
+                border: '2px solid #fff',
+                textAlign: 'center',
+                pointerEvents: 'none',
+                filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.25))',
+              }}
+            >
+              {v1}ml
+            </div>
+          </foreignObject>
+          {/* 2차 범위 끝 라벨 */}
+          <foreignObject
+            x={`${needlePosition.x + r2x - 2}%`}
+            y={`${muscleCenterY - r2y / 2}%`}
+            width="48"
+            height="32"
+            style={{ overflow: 'visible' }}
+          >
+            <div
+              className="text-white text-base font-bold px-2 py-1 rounded-full shadow-lg"
+              style={{
+                background: 'linear-gradient(90deg,#a21caf,#06b6d4)',
+                border: '2px solid #fff',
+                textAlign: 'center',
+                pointerEvents: 'none',
+                filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.25))',
+              }}
+            >
+              {v2}ml
+            </div>
+          </foreignObject>
+        </>;
+      })()}
+    </svg>
+  </div>
+)}
 
                     {/* Injection flow animation */}
+                  {predictedSpread && currentStep >= 4 && (
                     <div
                       className="absolute w-1 bg-blue-300 opacity-80 animate-pulse rounded-full transition-all duration-1000"
                       style={{
@@ -529,32 +559,38 @@ const Main: React.FC = () => {
                         height: "8%",
                       }}
                     />
-                  </>
                 )}
               </div>
 
               {/* Anatomical labels */}
               {tissueData && currentStep >= 2 && (
                 <>
-                  <div className="absolute top-2 left-16 text-gray-300 text-xs font-mono bg-black bg-opacity-50 px-1 rounded">
+                    {/* 피부 */}
+                    <div className="absolute text-gray-300 text-xs font-mono bg-black bg-opacity-50 px-1 rounded" style={{ top: `${skinTop + skinHeight / 2 - 1}%`, left: '12%' }}>
                     피부
                   </div>
-                  <div className="absolute top-8 left-16 text-yellow-300 text-xs font-mono bg-black bg-opacity-50 px-1 rounded">
+                    {/* 피하지방 */}
+                    <div className="absolute text-yellow-300 text-xs font-mono bg-black bg-opacity-50 px-1 rounded" style={{ top: `${fatTop + fatHeight / 2 - 1}%`, left: '12%' }}>
                     피하지방
                   </div>
-                  <div className="absolute top-20 left-4 text-red-300 text-xs font-mono bg-black bg-opacity-50 px-1 rounded">
+                    {/* 사각근 */}
+                    <div className="absolute text-red-300 text-xs font-mono bg-black bg-opacity-50 px-1 rounded" style={{ top: `${muscleTop + muscleHeight / 2 - 1}%`, left: '6%' }}>
                     사각근
                   </div>
-                  <div className="absolute top-24 left-32 text-yellow-300 text-xs font-mono bg-black bg-opacity-50 px-1 rounded">
+                    {/* 상완신경총 */}
+                    <div className="absolute text-yellow-300 text-xs font-mono bg-black bg-opacity-50 px-1 rounded" style={{ top: `${nerveTop + nerveHeight / 2 - 1}%`, left: `${nerveLeft + nerveWidth / 2 + 2}%` }}>
                     상완신경총
                   </div>
+                    {/* 쇄골하동맥 */}
                   <div className="absolute top-32 right-8 text-red-300 text-xs font-mono bg-black bg-opacity-50 px-1 rounded">
                     쇄골하동맥
                   </div>
+                    {/* 쇄골하정맥 */}
                   <div className="absolute top-36 right-20 text-blue-300 text-xs font-mono bg-black bg-opacity-50 px-1 rounded">
                     쇄골하정맥
                   </div>
-                  <div className="absolute bottom-6 left-16 text-white text-xs font-mono bg-black bg-opacity-50 px-1 rounded">
+                    {/* 제1늑골 */}
+                    <div className="absolute text-white text-xs font-mono bg-black bg-opacity-50 px-1 rounded" style={{ bottom: '10%', left: '16%' }}>
                     제1늑골
                   </div>
                 </>
@@ -601,132 +637,65 @@ const Main: React.FC = () => {
                 <div>F: 12MHz</div>
               </div>
             </div>
-
             {/* AI Processing Status */}
             {currentStep >= 3 && (
               <div className="mt-4 p-4 bg-blue-50 rounded-lg">
                 <div className="flex items-center space-x-2 mb-2">
                   <Brain className="w-5 h-5 text-blue-500" />
-                  <span className="font-medium text-blue-900">
-                    AI 분석 진행중...
-                  </span>
+                    <span className="font-medium text-blue-900">AI 분석 진행중...</span>
                 </div>
                 <div className="w-full bg-blue-200 rounded-full h-2">
-                  <div
-                    className="bg-blue-500 h-2 rounded-full transition-all duration-2000"
-                    style={{ width: currentStep >= 4 ? "100%" : "60%" }}
-                  />
-                </div>
+                    <div className="bg-blue-500 h-2 rounded-full transition-all duration-2000" style={{ width: currentStep >= 4 ? '100%' : '60%' }} />
+                  </div>
               </div>
             )}
           </div>
-
-          {/* Right Panel - AI Recommendations */}
-          <div className="space-y-6">
-            {/* AI Analysis Results */}
+            {/* 하단: AI 분석 결과, 위험요소, 권장사항, 확산 예측 */}
+            <div className="w-full max-w-5xl flex flex-col gap-6 mt-8">
             {aiAnalysis && (
               <div className="bg-white rounded-xl shadow-lg p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  AI 분석 결과
-                </h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">AI 분석 결과</h3>
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                    <span className="text-gray-700">성공 확률</span>
-                    <span className="text-2xl font-bold text-green-600">
-                      {aiAnalysis.successProbability}%
-                    </span>
-                  </div>
-
+                    <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg"><span className="text-gray-700">성공 확률</span><span className="text-2xl font-bold text-green-600">{aiAnalysis.successProbability}%</span></div>
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="p-3 bg-blue-50 rounded-lg">
-                      <p className="text-sm text-gray-600">권장 용량</p>
-                      <p className="font-semibold text-blue-600">
-                        {aiAnalysis.optimalVolume}ml
-                      </p>
+                      <div className="p-3 bg-blue-50 rounded-lg"><p className="text-sm text-gray-600">권장 용량</p><p className="font-semibold text-blue-600">{aiAnalysis.optimalVolume}ml</p></div>
+                      <div className="p-3 bg-purple-50 rounded-lg"><p className="text-sm text-gray-600">주입 각도</p><p className="font-semibold text-purple-600">{aiAnalysis.injectionAngle}°</p></div>
                     </div>
-                    <div className="p-3 bg-purple-50 rounded-lg">
-                      <p className="text-sm text-gray-600">주입 각도</p>
-                      <p className="font-semibold text-purple-600">
-                        {aiAnalysis.injectionAngle}°
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="p-3 bg-orange-50 rounded-lg">
-                    <p className="text-sm text-gray-600">예상 지속시간</p>
-                    <p className="font-semibold text-orange-600">
-                      {aiAnalysis.estimatedDuration}분
-                    </p>
-                  </div>
+                    <div className="p-3 bg-orange-50 rounded-lg"><p className="text-sm text-gray-600">예상 지속시간</p><p className="font-semibold text-orange-600">{aiAnalysis.estimatedDuration}분</p></div>
                 </div>
               </div>
             )}
-
-            {/* Risk Factors */}
             {aiAnalysis && (
               <div className="bg-white rounded-xl shadow-lg p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  위험 요소
-                </h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">위험 요소</h3>
                 <div className="space-y-3">
                   {aiAnalysis.riskFactors.map((risk, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center space-x-3 p-2 bg-yellow-50 rounded-lg"
-                    >
-                      <AlertTriangle className="w-4 h-4 text-yellow-500" />
-                      <span className="text-sm text-gray-700">{risk}</span>
-                    </div>
+                      <div key={index} className="flex items-center space-x-3 p-2 bg-yellow-50 rounded-lg"><AlertTriangle className="w-4 h-4 text-yellow-500" /><span className="text-sm text-gray-700">{risk}</span></div>
                   ))}
                 </div>
               </div>
             )}
-
-            {/* Recommendations */}
             {aiAnalysis && (
               <div className="bg-white rounded-xl shadow-lg p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  AI 권장사항
-                </h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">AI 권장사항</h3>
                 <div className="space-y-3">
                   {aiAnalysis.recommendations.map((rec, index) => (
-                    <div key={index} className="flex items-start space-x-3 p-2">
-                      <CheckCircle className="w-4 h-4 text-green-500 mt-0.5" />
-                      <span className="text-sm text-gray-700">{rec}</span>
-                    </div>
+                      <div key={index} className="flex items-start space-x-3 p-2"><CheckCircle className="w-4 h-4 text-green-500 mt-0.5" /><span className="text-sm text-gray-700">{rec}</span></div>
                   ))}
                 </div>
               </div>
             )}
-
-            {/* Predicted Spread */}
             {predictedSpread && (
               <div className="bg-white rounded-xl shadow-lg p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  확산 예측
-                </h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">확산 예측</h3>
                 <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">1차 확산:</span>
-                    <span className="font-medium text-blue-600">
-                      {predictedSpread.primary}%
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">2차 확산:</span>
-                    <span className="font-medium text-green-600">
-                      {predictedSpread.secondary}%
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">전체 커버리지:</span>
-                    <span className="font-medium text-purple-600">
-                      {predictedSpread.coverage}%
-                    </span>
+                    <div className="flex justify-between items-center"><span className="text-gray-600">1차 확산:</span><span className="font-medium text-blue-600">{predictedSpread.primary}%</span></div>
+                    <div className="flex justify-between items-center"><span className="text-gray-600">2차 확산:</span><span className="font-medium text-green-600">{predictedSpread.secondary}%</span></div>
+                    <div className="flex justify-between items-center"><span className="text-gray-600">전체 커버리지:</span><span className="font-medium text-purple-600">{predictedSpread.coverage}%</span></div>
                   </div>
                 </div>
+              )}
               </div>
-            )}
           </div>
         </div>
 
