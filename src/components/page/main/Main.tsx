@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import {
   Play,
-  Pause,
   RotateCcw,
   AlertTriangle,
   CheckCircle,
@@ -44,7 +43,7 @@ const Main: React.FC = () => {
   const [predictedSpread, setPredictedSpread] =
     useState<PredictedSpread | null>(null);
   const [aiAnalysis, setAiAnalysis] = useState<AIAnalysis | null>(null);
-  const [patientData, setPatientData] = useState({
+  const [patientData] = useState({
     age: 45,
     weight: 70,
     gender: "male",
